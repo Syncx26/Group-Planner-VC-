@@ -64,7 +64,8 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
   .datechip{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--panel2);
     border:1px solid var(--line);border-radius:var(--r2);padding:9px 12px;cursor:pointer;min-width:84px}
-  .datechip.active{border-color:var(--accent);background:#23284a}
+  .datechip.filled{border-color:rgba(67,214,160,.55);background:rgba(67,214,160,.13)}
+  .datechip.active{box-shadow:0 0 0 2px var(--accent);border-color:var(--accent)}
   .datechip .dow{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
   .datechip .dt{font-size:14px;font-weight:600}
   .datechip .mark{position:absolute;top:6px;right:7px;font-size:10px;color:var(--good)}
@@ -356,11 +357,15 @@ function renderDates(){
   const canEdit = me && me.role==="organiser";
   const c=$("#dateChips"); c.innerHTML="";
   if(dates.length===0){ c.innerHTML="<div class='hint' style='margin:0'>No dates yet.</div>"; }
+  const filledCount = dates.filter(d=>countMyHours(d.the_date)>0).length;
+  $("#dateHint").innerHTML = dates.length
+    ? `Mark your free hours on <b>every</b> date you could do — pick a date, set hours, repeat. <b>You've filled ${filledCount} of ${dates.length}.</b>`
+    : "Tap a date to mark your free hours for it.";
   for(const d of dates){
     const el=document.createElement("div");
-    el.className="datechip"+(selectedDate===d.the_date?" active":"")+(canEdit?" canedit":"");
     const marked = countMyHours(d.the_date)>0;
-    el.innerHTML=`<span class="dow">${fmtDow(d.the_date)}</span><span class="dt">${fmtDt(d.the_date)}</span>${marked?'<span class="mark">●</span>':''}${canEdit?'<span class="rm">×</span>':''}`;
+    el.className="datechip"+(selectedDate===d.the_date?" active":"")+(marked?" filled":"")+(canEdit?" canedit":"");
+    el.innerHTML=`<span class="dow">${fmtDow(d.the_date)}</span><span class="dt">${fmtDt(d.the_date)}</span>${marked?'<span class="mark">✓</span>':''}${canEdit?'<span class="rm">×</span>':''}`;
     el.addEventListener("click",ev=>{
       if(ev.target.classList.contains("rm")){ removeDate(d); return; }
       selectedDate=d.the_date; renderDates(); renderHours();
