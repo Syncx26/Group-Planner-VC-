@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cousin Call — pick a time everyone can make</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#171a2b; --panel2:#1f2338; --line:#2b3050;
+    --ink:#eef0fb; --muted:#9aa0c0; --accent:#6c8cff; --accent2:#8b6cff;
+    --good:#43d6a0; --warn:#ffb454; --bad:#ff6c7a;
+    --r:14px; --r2:10px;
+    --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 50% -10%,#1a1f3a 0%,var(--bg) 60%);
+    color:var(--ink);font-family:var(--f);line-height:1.45;-webkit-font-smoothing:antialiased;padding:0 0 64px}
+  .wrap{max-width:680px;margin:0 auto;padding:18px 16px}
+  header.top{display:flex;align-items:center;gap:12px;padding:6px 0}
+  .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(140deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;font-size:20px}
+  h1{font-size:19px;margin:0;letter-spacing:-.2px}
+  .sub{color:var(--muted);font-size:12.5px;margin:2px 0 0}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:14px}
+  .card h2{font-size:14px;margin:0 0 4px}
+  .card p.hint{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+  label.field{display:block;font-size:11px;color:var(--muted);margin:0 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  input[type=text],input[type=date]{width:100%;padding:12px;background:var(--panel2);border:1px solid var(--line);
+    color:var(--ink);border-radius:var(--r2);font-size:15px;font-family:var(--f);outline:none}
+  input:focus{border-color:var(--accent)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:150px}
+
+  .toggle{display:flex;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r2);padding:5px;margin-top:6px}
+  .toggle .opt{flex:1;text-align:center;padding:9px;border-radius:7px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+  .toggle .opt.on{background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff}
+
+  .combo{position:relative}
+  .combo .list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:var(--panel2);
+    border:1px solid var(--line);border-radius:var(--r2);max-height:240px;overflow:auto;display:none;box-shadow:0 12px 30px rgba(0,0,0,.4)}
+  .combo .list.show{display:block}
+  .combo .list .it{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .combo .list .it:hover,.combo .list .it.active{background:var(--accent);color:#fff}
+  .combo .list .it small{color:var(--muted);display:block;font-size:11px}
+  .combo .list .it:hover small,.combo .list .it.active small{color:#dfe4ff}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px 16px;border-radius:var(--r2);
+    border:none;cursor:pointer;font-size:15px;font-weight:700;background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff;margin-top:12px}
+  .btn.secondary{background:var(--panel2);color:var(--ink);border:1px solid var(--line);font-weight:600}
+  .btn.small{width:auto;padding:8px 12px;font-size:13px;margin:0}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn:active{transform:translateY(1px)}
+
+  /* roster */
+  .roster{display:flex;flex-wrap:wrap;gap:8px}
+  .pers{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-size:13px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#555a80}
+  .dot.on{background:var(--good);box-shadow:0 0 0 3px rgba(67,214,160,.18)}
+  .pers .role{font-size:10px;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:1px 6px;margin-left:2px}
+  .pers .chk{color:var(--good);font-size:12px}
+
+  /* date chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .datechip{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:var(--r2);padding:9px 12px;cursor:pointer;min-width:84px}
+  .datechip.active{border-color:var(--accent);background:#23284a}
+  .datechip .dow{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .datechip .dt{font-size:14px;font-weight:600}
+  .datechip .mark{position:absolute;top:6px;right:7px;font-size:10px;color:var(--good)}
+  .datechip .rm{position:absolute;top:4px;right:6px;color:var(--muted);font-size:14px;display:none}
+  .datechip.canedit .rm{display:block}
+  .datechip.canedit .mark{right:18px}
+
+  .hours{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}
+  .hr{padding:9px 4px;text-align:center;border-radius:8px;background:var(--panel2);border:1px solid var(--line);
+    font-size:12.5px;cursor:pointer;user-select:none}
+  .hr.on{background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+  .presets{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);cursor:pointer}
+  .chip.clear{color:var(--warn)}
+
+  .result{background:linear-gradient(140deg,#1b2750,#241b46);border:1px solid #39406e;border-radius:var(--r);padding:16px}
+  .result .count{display:inline-block;font-size:12px;font-weight:700;color:#0c0e1a;background:var(--good);padding:3px 9px;border-radius:999px;margin-bottom:8px}
+  .result .big{font-size:21px;font-weight:800;letter-spacing:-.3px;margin:2px 0}
+  .result .when2{color:var(--muted);font-size:12.5px;margin:0 0 4px}
+  .perlocal{display:flex;flex-direction:column;margin-top:10px}
+  .pl{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:7px 0;border-top:1px solid var(--line)}
+  .pl .who{color:var(--muted)}.pl.miss .when{color:var(--warn)}
+  .alts{margin-top:12px}.alts .a{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);padding:5px 0;border-top:1px dashed var(--line)}
+
+  .count-line{font-size:12px;color:var(--muted);margin-top:8px}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;background:#0c0e1a;
+    border:1px solid var(--line);color:var(--ink);padding:10px 16px;border-radius:999px;font-size:13px;transition:.25s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .foot{color:var(--muted);font-size:11.5px;text-align:center;margin-top:18px;line-height:1.6}
+  .minirow{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .center{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px 0;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">🗓️</div>
+    <div>
+      <h1>Cousin Call</h1>
+      <div class="sub" id="roundTitle">Loading…</div>
+    </div>
+  </header>
+
+  <div id="boot" class="center"><span class="spinner"></span> Connecting…</div>
+
+  <!-- ENTRY (name-first) -->
+  <section id="entry" style="display:none">
+    <div class="card">
+      <h2>Join the call planner</h2>
+      <p class="hint">Tell us who you are so your cousins can see you've joined.</p>
+      <label class="field" for="name">Your name</label>
+      <input type="text" id="name" placeholder="e.g. Ananya" autocomplete="off">
+      <div style="height:12px"></div>
+      <label class="field" for="cityInput">Your city</label>
+      <div class="combo">
+        <input type="text" id="cityInput" placeholder="Start typing… e.g. Mumbai" autocomplete="off">
+        <div class="list" id="cityList"></div>
+      </div>
+      <div style="height:14px"></div>
+      <label class="field">I'm joining as</label>
+      <div class="toggle" id="roleToggle">
+        <div class="opt on" data-role="participant">Participant</div>
+        <div class="opt" data-role="organiser">Organiser</div>
+      </div>
+      <p class="hint" id="roleHint" style="margin:8px 0 0">Participants pick times. Organisers can also propose dates.</p>
+      <button class="btn" id="joinBtn">Join →</button>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <section id="app" style="display:none">
+    <div class="card">
+      <h2>Who's in <span id="rosterCount" style="color:var(--muted);font-weight:400"></span></h2>
+      <p class="hint">Green dot = online now · ✓ = availability submitted</p>
+      <div class="roster" id="roster"></div>
+    </div>
+
+    <div class="card">
+      <h2>Dates on the table</h2>
+      <p class="hint" id="dateHint">Tap a date to mark your free hours for it.</p>
+      <div class="chips" id="dateChips"></div>
+      <div class="minirow" id="proposeRow"></div>
+    </div>
+
+    <div class="card" id="hoursCard">
+      <h2 id="hoursTitle">Your free hours</h2>
+      <p class="hint" id="hoursSub">Pick a date above first.</p>
+      <div class="presets" id="presets" style="display:none">
+        <span class="chip" data-p="morning">Morning</span>
+        <span class="chip" data-p="afternoon">Afternoon</span>
+        <span class="chip" data-p="evening">Evening</span>
+        <span class="chip" data-p="night">Late night</span>
+        <span class="chip clear" data-p="clear">Clear day</span>
+      </div>
+      <div class="hours" id="hours" style="display:none"></div>
+      <button class="btn" id="saveBtn">Save my availability</button>
+    </div>
+
+    <div class="card">
+      <h2>Best time for the call</h2>
+      <div class="result" id="result"><div class="hint" style="margin:0">No availability yet — be the first to fill yours in.</div></div>
+    </div>
+
+    <div class="card" id="adminCard" style="display:none">
+      <h2>Organiser tools</h2>
+      <p class="hint">Start fresh for a new month. This closes the current round.</p>
+      <button class="btn secondary" id="newRoundBtn">Start a new month's round</button>
+    </div>
+  </section>
+
+  <div class="foot" id="foot"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== config (publishable key — safe to embed; protected by RLS) ===== */
+if(!window.supabase){ document.querySelector("#boot").innerHTML="Couldn't load the app library. Check your internet and refresh."; }
+const { createClient } = window.supabase;
+const SUPABASE_URL = "https://sxsifnakskrublihkjhh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_jYitTky2XNjcJjJPUwjBng_mTxKwN5o";
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { realtime:{ params:{ eventsPerSecond:5 } } });
+
+/* ===== city -> timezone ===== */
+const ZONES = [
+  ["Mumbai","India","Asia/Kolkata"],["Delhi","India","Asia/Kolkata"],["Bengaluru","India","Asia/Kolkata"],
+  ["Hyderabad","India","Asia/Kolkata"],["Chennai","India","Asia/Kolkata"],["Kolkata","India","Asia/Kolkata"],
+  ["Pune","India","Asia/Kolkata"],["Ahmedabad","India","Asia/Kolkata"],["Chandigarh","India","Asia/Kolkata"],
+  ["Dubai","UAE","Asia/Dubai"],["Abu Dhabi","UAE","Asia/Dubai"],["Doha","Qatar","Asia/Qatar"],
+  ["London","UK","Europe/London"],["Manchester","UK","Europe/London"],["Dublin","Ireland","Europe/Dublin"],
+  ["Berlin","Germany","Europe/Berlin"],["Frankfurt","Germany","Europe/Berlin"],["Munich","Germany","Europe/Berlin"],
+  ["Paris","France","Europe/Paris"],["Zurich","Switzerland","Europe/Zurich"],["Geneva","Switzerland","Europe/Zurich"],
+  ["Amsterdam","Netherlands","Europe/Amsterdam"],["Madrid","Spain","Europe/Madrid"],["Barcelona","Spain","Europe/Madrid"],
+  ["Rome","Italy","Europe/Rome"],["Milan","Italy","Europe/Rome"],["Stockholm","Sweden","Europe/Stockholm"],
+  ["Oslo","Norway","Europe/Oslo"],["Athens","Greece","Europe/Athens"],["Istanbul","Turkey","Europe/Istanbul"],
+  ["Moscow","Russia","Europe/Moscow"],["Lisbon","Portugal","Europe/Lisbon"],
+  ["Johannesburg","South Africa","Africa/Johannesburg"],["Cape Town","South Africa","Africa/Johannesburg"],
+  ["Lagos","Nigeria","Africa/Lagos"],["Nairobi","Kenya","Africa/Nairobi"],["Cairo","Egypt","Africa/Cairo"],
+  ["Karachi","Pakistan","Asia/Karachi"],["Lahore","Pakistan","Asia/Karachi"],["Dhaka","Bangladesh","Asia/Dhaka"],
+  ["Kathmandu","Nepal","Asia/Kathmandu"],["Colombo","Sri Lanka","Asia/Colombo"],["Bangkok","Thailand","Asia/Bangkok"],
+  ["Singapore","Singapore","Asia/Singapore"],["Kuala Lumpur","Malaysia","Asia/Kuala_Lumpur"],
+  ["Jakarta","Indonesia","Asia/Jakarta"],["Manila","Philippines","Asia/Manila"],["Hong Kong","Hong Kong","Asia/Hong_Kong"],
+  ["Shanghai","China","Asia/Shanghai"],["Beijing","China","Asia/Shanghai"],["Tokyo","Japan","Asia/Tokyo"],
+  ["Osaka","Japan","Asia/Tokyo"],["Seoul","South Korea","Asia/Seoul"],
+  ["Sydney","Australia","Australia/Sydney"],["Melbourne","Australia","Australia/Sydney"],
+  ["Brisbane","Australia","Australia/Brisbane"],["Perth","Australia","Australia/Perth"],
+  ["Auckland","New Zealand","Pacific/Auckland"],
+  ["New York","USA","America/New_York"],["Boston","USA","America/New_York"],["Washington DC","USA","America/New_York"],
+  ["Atlanta","USA","America/New_York"],["Chicago","USA","America/Chicago"],["Houston","USA","America/Chicago"],
+  ["Dallas","USA","America/Chicago"],["Denver","USA","America/Denver"],["Phoenix","USA","America/Phoenix"],
+  ["Los Angeles","USA","America/Los_Angeles"],["San Francisco","USA","America/Los_Angeles"],
+  ["Seattle","USA","America/Los_Angeles"],["Toronto","Canada","America/Toronto"],["Vancouver","Canada","America/Vancouver"],
+  ["São Paulo","Brazil","America/Sao_Paulo"],["Buenos Aires","Argentina","America/Argentina/Buenos_Aires"],
+  ["Mexico City","Mexico","America/Mexico_City"],["Santiago","Chile","America/Santiago"]
+];
+const ALIAS = { "Asia/Calcutta":"Asia/Kolkata","Asia/Katmandu":"Asia/Kathmandu","Asia/Saigon":"Asia/Ho_Chi_Minh","America/Buenos_Aires":"America/Argentina/Buenos_Aires" };
+
+/* ===== timezone math (DST-correct via real instants) ===== */
+const GRID = 30*60*1000; // 30-min UTC grid
+function tzOffsetMinutes(tz, date){
+  const dtf = new Intl.DateTimeFormat("en-US",{timeZone:tz,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const p={}; for(const x of dtf.formatToParts(date)) if(x.type!=="literal") p[x.type]=x.value;
+  let hh=p.hour==="24"?0:Number(p.hour);
+  const asUTC=Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day),hh,Number(p.minute),Number(p.second));
+  return Math.round((asUTC-date.getTime())/60000);
+}
+// A local (date, hour) in tz -> the two 30-min UTC grid slots covering that hour (ISO strings).
+function localHourToSlots(tz, dateStr, hour){
+  const [y,mo,d]=dateStr.split("-").map(Number);
+  const approx=Date.UTC(y,mo-1,d,hour,0,0);
+  const o1=tzOffsetMinutes(tz,new Date(approx));
+  let real=approx-o1*60000;
+  const o2=tzOffsetMinutes(tz,new Date(real));
+  real=approx-o2*60000;
+  const s0=Math.round(real/GRID)*GRID;
+  return [new Date(s0).toISOString(), new Date(s0+GRID).toISOString()];
+}
+function slotLabel(tz, iso){
+  return new Intl.DateTimeFormat("en-US",{timeZone:tz,weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}).format(new Date(iso));
+}
+function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function todayYmd(){ return ymd(new Date()); }
+function fmtDow(dateStr){ const [y,mo,d]=dateStr.split("-").map(Number); return new Date(Date.UTC(y,mo-1,d)).toLocaleDateString("en-US",{weekday:"short",timeZone:"UTC"}); }
+function fmtDt(dateStr){ const [y,mo,d]=dateStr.split("-").map(Number); return new Date(Date.UTC(y,mo-1,d)).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"}); }
+
+/* ===== helpers ===== */
+const $=s=>document.querySelector(s);
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2000); }
+function cityToTz(name){ const f=ZONES.find(z=>z[0].toLowerCase()===name.toLowerCase()); return f?{city:f[0]+", "+f[1],tz:f[2]}:null; }
+function shortCity(label){ return (label||"").split(",")[0]; }
+
+/* ===== state ===== */
+let round=null, me=null;            // me = {participantId,name,tz,cityLabel,role}
+let participants=[], dates=[], avail=[];
+let selectedDate=null;
+const selected = new Set();          // "dateStr|hour" the current user has marked
+let onlineSet = new Set();
+let presenceChannel=null;
+
+/* ===== entry: city combobox ===== */
+const cityInput=$("#cityInput"), cityList=$("#cityList");
+let cityChoice=null;
+function renderCityList(q){
+  const ql=q.trim().toLowerCase();
+  const items=ZONES.filter(z=> (z[0]+" "+z[1]).toLowerCase().includes(ql)).slice(0,8);
+  cityList.innerHTML="";
+  if(!ql || items.length===0){ cityList.classList.remove("show"); return; }
+  for(const z of items){
+    const it=document.createElement("div"); it.className="it";
+    it.innerHTML="<span></span><small></small>";
+    it.querySelector("span").textContent=z[0];
+    it.querySelector("small").textContent=z[1];
+    it.addEventListener("mousedown",e=>{ e.preventDefault(); cityChoice={city:z[0]+", "+z[1],tz:z[2]}; cityInput.value=z[0]+", "+z[1]; cityList.classList.remove("show"); });
+    cityList.appendChild(it);
+  }
+  cityList.classList.add("show");
+}
+cityInput.addEventListener("input",()=>{ cityChoice=null; renderCityList(cityInput.value); });
+cityInput.addEventListener("focus",()=>renderCityList(cityInput.value));
+document.addEventListener("click",e=>{ if(!e.target.closest(".combo")) cityList.classList.remove("show"); });
+
+/* prefill detected city */
+(function detectCity(){
+  let tz="Asia/Kolkata"; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||tz; }catch(e){}
+  if(ALIAS[tz]) tz=ALIAS[tz];
+  const f=ZONES.find(z=>z[2]===tz);
+  if(f){ cityChoice={city:f[0]+", "+f[1],tz:f[2]}; cityInput.value=f[0]+", "+f[1]; }
+})();
+
+/* role toggle */
+let role="participant";
+$("#roleToggle").addEventListener("click",e=>{
+  const o=e.target.closest(".opt"); if(!o) return;
+  role=o.dataset.role;
+  document.querySelectorAll("#roleToggle .opt").forEach(x=>x.classList.toggle("on",x===o));
+  $("#roleHint").textContent = role==="organiser"
+    ? "You can propose dates and start a new month's round."
+    : "Participants pick times. You can also suggest a date near the proposed ones.";
+});
+
+/* ===== bootstrap ===== */
+async function ensureRound(){
+  const { data:open } = await sb.from("rounds").select("*").eq("status","open").order("created_at",{ascending:false}).limit(1);
+  if(open && open.length) return open[0];
+  const title=new Date().toLocaleString("en-US",{month:"long",year:"numeric"});
+  const { data:created, error } = await sb.from("rounds").insert({title,created_by:"auto"}).select().single();
+  if(error){ // someone else just created it — re-fetch
+    const { data:again } = await sb.from("rounds").select("*").eq("status","open").order("created_at",{ascending:false}).limit(1);
+    return again && again[0];
+  }
+  // seed weekends for next 5 weeks
+  const seeds=[]; const t=new Date(); t.setHours(0,0,0,0);
+  for(let i=0;i<35;i++){ const d=new Date(t); d.setDate(t.getDate()+i); const dow=d.getDay(); if(dow===0||dow===6) seeds.push(ymd(d)); }
+  if(seeds.length) await sb.from("candidate_dates").insert(seeds.map(s=>({round_id:created.id,the_date:s,source:"organiser",proposed_by:"auto"})));
+  return created;
+}
+
+async function loadAll(){
+  const [p,d,a] = await Promise.all([
+    sb.from("participants").select("*").eq("round_id",round.id).order("created_at"),
+    sb.from("candidate_dates").select("*").eq("round_id",round.id).order("the_date"),
+    sb.from("availability").select("participant_id,slot_start").eq("round_id",round.id)
+  ]);
+  participants = p.data||[];
+  dates = (d.data||[]).filter(x=> x.the_date>=todayYmd());  // current-time aware: only future dates
+  avail = a.data||[];
+}
+
+/* ===== render ===== */
+function renderRoster(){
+  $("#rosterCount").textContent = "· "+participants.length+" joined";
+  const r=$("#roster"); r.innerHTML="";
+  for(const p of participants){
+    const el=document.createElement("div"); el.className="pers";
+    const online = onlineSet.has(p.id);
+    el.innerHTML=`<span class="dot ${online?'on':''}"></span><span class="nm"></span>${p.role==='organiser'?'<span class="role">organiser</span>':''}${p.done?'<span class="chk">✓</span>':''}`;
+    el.querySelector(".nm").textContent=p.name+" · "+shortCity(p.city_label||"");
+    r.appendChild(el);
+  }
+}
+
+function renderDates(){
+  const canEdit = me && me.role==="organiser";
+  const c=$("#dateChips"); c.innerHTML="";
+  if(dates.length===0){ c.innerHTML="<div class='hint' style='margin:0'>No dates yet.</div>"; }
+  for(const d of dates){
+    const el=document.createElement("div");
+    el.className="datechip"+(selectedDate===d.the_date?" active":"")+(canEdit?" canedit":"");
+    const marked = countMyHours(d.the_date)>0;
+    el.innerHTML=`<span class="dow">${fmtDow(d.the_date)}</span><span class="dt">${fmtDt(d.the_date)}</span>${marked?'<span class="mark">●</span>':''}${canEdit?'<span class="rm">×</span>':''}`;
+    el.addEventListener("click",ev=>{
+      if(ev.target.classList.contains("rm")){ removeDate(d); return; }
+      selectedDate=d.the_date; renderDates(); renderHours();
+    });
+    c.appendChild(el);
+  }
+  // propose / suggest row
+  const pr=$("#proposeRow"); pr.innerHTML="";
+  const label=document.createElement("span"); label.className="hint"; label.style.margin="0";
+  label.textContent = canEdit ? "Add a date:" : "Suggest a date (within a week of an existing one):";
+  const inp=document.createElement("input"); inp.type="date"; inp.style.maxWidth="170px"; inp.min=todayYmd();
+  const add=document.createElement("button"); add.className="btn small"; add.textContent="Add";
+  add.addEventListener("click",()=>{ if(inp.value) proposeDate(inp.value, canEdit); });
+  pr.appendChild(label); pr.appendChild(inp); pr.appendChild(add);
+}
+
+function renderHours(){
+  const wrap=$("#hours"), sub=$("#hoursSub"), pr=$("#presets"), title=$("#hoursTitle");
+  if(!selectedDate){ wrap.style.display="none"; pr.style.display="none"; sub.textContent="Pick a date above first."; title.textContent="Your free hours"; return; }
+  title.textContent=`Your free hours · ${fmtDow(selectedDate)} ${fmtDt(selectedDate)}`;
+  sub.textContent=`In ${shortCity(me.cityLabel)} time. Tap the hours you could join.`;
+  pr.style.display="flex"; wrap.style.display="grid"; wrap.innerHTML="";
+  for(let h=0;h<24;h++){
+    const key=selectedDate+"|"+h;
+    const el=document.createElement("div"); el.className="hr"+(selected.has(key)?" on":"");
+    el.textContent=hourLabel(h);
+    el.addEventListener("click",()=>{ if(selected.has(key)) selected.delete(key); else selected.add(key); el.classList.toggle("on"); refreshDateMarks(); });
+    wrap.appendChild(el);
+  }
+}
+function hourLabel(h){ const ap=h<12?"am":"pm"; let hh=h%12; if(hh===0) hh=12; return hh+ap; }
+function countMyHours(dateStr){ let n=0; for(const k of selected) if(k.startsWith(dateStr+"|")) n++; return n; }
+function refreshDateMarks(){ renderDates(); }
+
+$("#presets").addEventListener("click",e=>{
+  const c=e.target.closest(".chip"); if(!c||!selectedDate) return;
+  const p=c.dataset.p;
+  const rng={morning:[6,12],afternoon:[12,17],evening:[17,22],night:[22,24]}[p];
+  if(p==="clear"){ for(let h=0;h<24;h++) selected.delete(selectedDate+"|"+h); }
+  else if(rng){ for(let h=rng[0];h<rng[1];h++) selected.add(selectedDate+"|"+h); }
+  renderHours(); refreshDateMarks();
+});
+
+/* ===== result ===== */
+function renderResult(){
+  const out=$("#result");
+  if(avail.length===0){ out.innerHTML="<div class='hint' style='margin:0'>No availability yet — be the first to fill yours in.</div>"; return; }
+  const N=participants.length;
+  const slotMap=new Map(); // iso -> Set(participant_id)
+  for(const a of avail){ if(!slotMap.has(a.slot_start)) slotMap.set(a.slot_start,new Set()); slotMap.get(a.slot_start).add(a.participant_id); }
+  const ranked=[...slotMap.entries()].map(([iso,set])=>({iso,c:set.size,set})).filter(x=> new Date(x.iso)>new Date())
+    .sort((a,b)=> b.c-a.c || new Date(a.iso)-new Date(b.iso));
+  if(ranked.length===0){ out.innerHTML="<div class='hint' style='margin:0'>All marked times are in the past. Add later dates.</div>"; return; }
+  const best=ranked[0];
+  const refTz = me ? me.tz : (participants[0]&&participants[0].tz) || "UTC";
+  let html=`<span class="count">${best.c} of ${N} can make it</span>`;
+  html+=`<div class="big">${slotLabel(refTz,best.iso)}</div>`;
+  html+=`<div class="when2">shown in ${shortCity(me?me.cityLabel:participants[0].city_label)} time · here it is for everyone:</div>`;
+  html+="<div class='perlocal'>";
+  for(const p of participants){
+    const miss=!best.set.has(p.id);
+    html+=`<div class="pl${miss?' miss':''}"><span class="who">${esc(p.name)} · ${esc(shortCity(p.city_label||""))}</span><span class="when">${slotLabel(p.tz,best.iso)}${miss?' · busy':''}</span></div>`;
+  }
+  html+="</div>";
+  const others=ranked.slice(1,4);
+  if(others.length){
+    html+="<div class='alts'><div class='hint' style='margin:0 0 2px'>Other options</div>";
+    for(const o of others) html+=`<div class="a"><span>${slotLabel(refTz,o.iso)}</span><span>${o.c}/${N}</span></div>`;
+    html+="</div>";
+  }
+  out.innerHTML=html;
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+
+/* ===== actions ===== */
+async function proposeDate(dateStr, isOrganiser){
+  if(dateStr<todayYmd()){ toast("Pick a future date"); return; }
+  if(dates.some(d=>d.the_date===dateStr)){ toast("That date's already there"); return; }
+  if(!isOrganiser){
+    // must be within ±7 days of an existing candidate date
+    const ok=dates.some(d=> Math.abs((new Date(dateStr)-new Date(d.the_date))/86400000)<=7);
+    if(!ok){ toast("Suggestions must be within a week of an existing date"); return; }
+  }
+  const { error } = await sb.from("candidate_dates").insert({round_id:round.id,the_date:dateStr,source:isOrganiser?"organiser":"participant",proposed_by:me.name});
+  if(error){ toast("Couldn't add date"); return; }
+  await refresh(); toast("Date added");
+}
+async function removeDate(d){
+  if(!confirm("Remove "+fmtDow(d.the_date)+" "+fmtDt(d.the_date)+"?")) return;
+  await sb.from("candidate_dates").delete().eq("id",d.id);
+  if(selectedDate===d.the_date){ selectedDate=null; }
+  await refresh();
+}
+async function saveAvailability(){
+  if(!me){ return; }
+  $("#saveBtn").disabled=true; $("#saveBtn").textContent="Saving…";
+  await sb.from("availability").delete().eq("participant_id",me.participantId);
+  const seen=new Set(); const rows=[];
+  for(const key of selected){
+    const [dateStr,h]=key.split("|");
+    for(const iso of localHourToSlots(me.tz,dateStr,Number(h))){
+      if(seen.has(iso)) continue; seen.add(iso);
+      rows.push({round_id:round.id,participant_id:me.participantId,slot_start:iso});
+    }
+  }
+  if(rows.length) await sb.from("availability").insert(rows);
+  await sb.from("participants").update({done:true,last_seen:new Date().toISOString()}).eq("id",me.participantId);
+  $("#saveBtn").disabled=false; $("#saveBtn").textContent="Save my availability";
+  await refresh();
+  toast(rows.length?"Saved! Your cousins can see it now.":"Cleared your availability.");
+}
+$("#saveBtn").addEventListener("click",saveAvailability);
+
+async function newRound(){
+  if(!confirm("Close this round and start a new month? Everyone re-enters availability.")) return;
+  await sb.from("rounds").update({status:"closed"}).eq("id",round.id);
+  localStorage.removeItem("cc.me");
+  location.reload();
+}
+$("#newRoundBtn").addEventListener("click",newRound);
+
+/* ===== join ===== */
+$("#joinBtn").addEventListener("click",async()=>{
+  const name=$("#name").value.trim();
+  if(!name){ toast("Add your name"); $("#name").focus(); return; }
+  if(!cityChoice){ const typed=cityToTz(shortCity(cityInput.value)); if(typed) cityChoice=typed; }
+  if(!cityChoice){ toast("Pick your city from the list"); $("#cityInput").focus(); return; }
+  $("#joinBtn").disabled=true; $("#joinBtn").textContent="Joining…";
+  // upsert by (round, lower(name))
+  const existing = participants.find(p=> p.name.toLowerCase()===name.toLowerCase());
+  let row;
+  if(existing){
+    const { data } = await sb.from("participants").update({city_label:cityChoice.city,tz:cityChoice.tz,role,last_seen:new Date().toISOString()}).eq("id",existing.id).select().single();
+    row=data;
+  } else {
+    const { data, error } = await sb.from("participants").insert({round_id:round.id,name,city_label:cityChoice.city,tz:cityChoice.tz,role}).select().single();
+    if(error){ toast("That name's taken — try another"); $("#joinBtn").disabled=false; $("#joinBtn").textContent="Join →"; return; }
+    row=data;
+  }
+  me={participantId:row.id,name:row.name,tz:row.tz,cityLabel:row.city_label,role:row.role};
+  localStorage.setItem("cc.me",JSON.stringify({roundId:round.id,...me}));
+  enterApp();
+});
+
+/* ===== realtime ===== */
+function subscribeDb(){
+  sb.channel("db-"+round.id)
+    .on("postgres_changes",{event:"*",schema:"public",table:"participants",filter:"round_id=eq."+round.id},softReload)
+    .on("postgres_changes",{event:"*",schema:"public",table:"availability",filter:"round_id=eq."+round.id},softReload)
+    .on("postgres_changes",{event:"*",schema:"public",table:"candidate_dates",filter:"round_id=eq."+round.id},softReload)
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"rounds",filter:"id=eq."+round.id},(p)=>{ if(p.new.status==="closed"){ toast("A new round was started"); setTimeout(()=>location.reload(),1200);} })
+    .subscribe();
+}
+let reloadT=null;
+function softReload(){ clearTimeout(reloadT); reloadT=setTimeout(refresh,250); }
+async function refresh(){ await loadAll(); renderRoster(); renderDates(); renderHours(); renderResult(); }
+
+function subscribePresence(){
+  presenceChannel=sb.channel("pres-"+round.id,{config:{presence:{key:me.participantId}}});
+  presenceChannel.on("presence",{event:"sync"},()=>{ onlineSet=new Set(Object.keys(presenceChannel.presenceState())); renderRoster(); });
+  presenceChannel.subscribe(async(status)=>{ if(status==="SUBSCRIBED") await presenceChannel.track({name:me.name}); });
+}
+
+/* ===== screen flow ===== */
+function enterApp(){
+  $("#entry").style.display="none";
+  $("#app").style.display="block";
+  $("#adminCard").style.display = me.role==="organiser" ? "block" : "none";
+  // restore my previous availability into `selected`
+  selected.clear();
+  const mine=avail.filter(a=>a.participant_id===me.participantId).map(a=>a.slot_start);
+  const mineSet=new Set(mine);
+  for(const d of dates){ for(let h=0;h<24;h++){ const [s0]=localHourToSlots(me.tz,d.the_date,h); if(mineSet.has(s0)) selected.add(d.the_date+"|"+h); } }
+  if(dates.length) selectedDate=dates[0].the_date;
+  renderRoster(); renderDates(); renderHours(); renderResult();
+  subscribePresence();
+}
+
+async function init(){
+  round=await ensureRound();
+  if(!round){ $("#boot").innerHTML="Couldn't load the round. Refresh?"; return; }
+  $("#roundTitle").textContent=round.title+" · everyone picks, we plan the time";
+  $("#foot").textContent="Live & shared · DST-aware · one link for the whole family";
+  await loadAll();
+  subscribeDb();
+  $("#boot").style.display="none";
+  // resume identity if present for this round
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem("cc.me")||"null"); }catch(e){}
+  if(saved && saved.roundId===round.id && participants.some(p=>p.id===saved.participantId)){
+    me={participantId:saved.participantId,name:saved.name,tz:saved.tz,cityLabel:saved.cityLabel,role:saved.role};
+    enterApp();
+  } else {
+    $("#entry").style.display="block";
+  }
+}
+init().catch(e=>{ console.error(e); $("#boot").innerHTML="Error: "+(e.message||e); });
+</script>
+</body>
+</html>
