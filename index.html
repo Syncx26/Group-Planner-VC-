@@ -192,7 +192,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { realtime:{ params:{ events
 
 /* ===== city -> timezone ===== */
 const ZONES = [
-  ["Mumbai","India","Asia/Kolkata"],["Delhi","India","Asia/Kolkata"],["Bengaluru","India","Asia/Kolkata"],
+  ["Delhi","India","Asia/Kolkata"],["Mumbai","India","Asia/Kolkata"],["Bengaluru","India","Asia/Kolkata"],
   ["Hyderabad","India","Asia/Kolkata"],["Chennai","India","Asia/Kolkata"],["Kolkata","India","Asia/Kolkata"],
   ["Pune","India","Asia/Kolkata"],["Ahmedabad","India","Asia/Kolkata"],["Chandigarh","India","Asia/Kolkata"],
   ["Dubai","UAE","Asia/Dubai"],["Abu Dhabi","UAE","Asia/Dubai"],["Doha","Qatar","Asia/Qatar"],
@@ -304,7 +304,7 @@ $("#roleToggle").addEventListener("click",e=>{
   document.querySelectorAll("#roleToggle .opt").forEach(x=>x.classList.toggle("on",x===o));
   $("#roleHint").textContent = role==="organiser"
     ? "You can propose dates and start a new month's round."
-    : "Participants pick times. You can also suggest a date near the proposed ones.";
+    : "Participants pick times. You can also suggest your own dates.";
 });
 
 /* ===== bootstrap ===== */
@@ -366,7 +366,7 @@ function renderDates(){
   // propose / suggest row
   const pr=$("#proposeRow"); pr.innerHTML="";
   const label=document.createElement("span"); label.className="hint"; label.style.margin="0";
-  label.textContent = canEdit ? "Add a date:" : "Suggest a date (within a week of an existing one):";
+  label.textContent = canEdit ? "Add a date:" : "Suggest another date:";
   const inp=document.createElement("input"); inp.type="date"; inp.style.maxWidth="170px"; inp.min=todayYmd();
   const add=document.createElement("button"); add.className="btn small"; add.textContent="Add";
   add.addEventListener("click",()=>{ if(inp.value) proposeDate(inp.value, canEdit); });
@@ -435,11 +435,6 @@ function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">
 async function proposeDate(dateStr, isOrganiser){
   if(dateStr<todayYmd()){ toast("Pick a future date"); return; }
   if(dates.some(d=>d.the_date===dateStr)){ toast("That date's already there"); return; }
-  if(!isOrganiser){
-    // must be within ±7 days of an existing candidate date
-    const ok=dates.some(d=> Math.abs((new Date(dateStr)-new Date(d.the_date))/86400000)<=7);
-    if(!ok){ toast("Suggestions must be within a week of an existing date"); return; }
-  }
   const { error } = await sb.from("candidate_dates").insert({round_id:round.id,the_date:dateStr,source:isOrganiser?"organiser":"participant",proposed_by:me.name});
   if(error){ toast("Couldn't add date"); return; }
   await refresh(); toast("Date added");
