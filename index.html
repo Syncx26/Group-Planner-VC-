@@ -73,9 +73,11 @@
   .datechip.canedit .mark{right:18px}
 
   .hours{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}
-  .hr{padding:9px 4px;text-align:center;border-radius:8px;background:var(--panel2);border:1px solid var(--line);
-    font-size:12.5px;cursor:pointer;user-select:none}
-  .hr.on{background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+  .hr{position:relative;padding:9px 4px;text-align:center;border-radius:8px;background:var(--panel2);border:1px solid var(--line);
+    font-size:12.5px;cursor:pointer;user-select:none;overflow:hidden}
+  .hr.on{background:linear-gradient(140deg,var(--accent),var(--accent2))!important;color:#fff;border-color:transparent}
+  .hr .cnt{position:absolute;top:2px;right:4px;font-size:9px;font-weight:800;color:var(--good);line-height:1}
+  .hr.on .cnt{color:#fff}
   .presets{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);cursor:pointer}
   .chip.clear{color:var(--warn)}
@@ -172,8 +174,9 @@
 
     <div class="card" id="adminCard" style="display:none">
       <h2>Organiser tools</h2>
-      <p class="hint">Start fresh for a new month. This closes the current round.</p>
-      <button class="btn secondary" id="newRoundBtn">Start a new month's round</button>
+      <p class="hint">Reset clears everyone's names &amp; times but keeps the dates. New month starts a completely fresh round (new dates too).</p>
+      <button class="btn secondary" id="resetBtn">Reset everyone (clear names &amp; times)</button>
+      <button class="btn secondary" id="newRoundBtn" style="margin-top:8px">Start a new month's round</button>
     </div>
   </section>
 
@@ -332,7 +335,8 @@ async function loadAll(){
   ]);
   participants = p.data||[];
   dates = (d.data||[]).filter(x=> x.the_date>=todayYmd());  // current-time aware: only future dates
-  avail = a.data||[];
+  // normalise DB timestamps to canonical ISO so they match toISOString() comparisons
+  avail = (a.data||[]).map(r=>({ participant_id:r.participant_id, slot_start:new Date(r.slot_start).toISOString() }));
 }
 
 /* ===== render ===== */
@@ -373,17 +377,25 @@ function renderDates(){
   pr.appendChild(label); pr.appendChild(inp); pr.appendChild(add);
 }
 
+function buildSlotMap(){ const m=new Map(); for(const a of avail){ if(!m.has(a.slot_start)) m.set(a.slot_start,new Set()); m.get(a.slot_start).add(a.participant_id); } return m; }
+
 function renderHours(){
   const wrap=$("#hours"), sub=$("#hoursSub"), pr=$("#presets"), title=$("#hoursTitle");
   if(!selectedDate){ wrap.style.display="none"; pr.style.display="none"; sub.textContent="Pick a date above first."; title.textContent="Your free hours"; return; }
   title.textContent=`Your free hours · ${fmtDow(selectedDate)} ${fmtDt(selectedDate)}`;
-  sub.textContent=`In ${shortCity(me.cityLabel)} time. Tap the hours you could join.`;
+  sub.innerHTML=`In <b>${esc(shortCity(me.cityLabel))}</b> time. Green numbers show how many cousins are free then — aim for the busy hours.`;
   pr.style.display="flex"; wrap.style.display="grid"; wrap.innerHTML="";
+  const m=buildSlotMap();
   for(let h=0;h<24;h++){
     const key=selectedDate+"|"+h;
-    const el=document.createElement("div"); el.className="hr"+(selected.has(key)?" on":"");
-    el.textContent=hourLabel(h);
-    el.addEventListener("click",()=>{ if(selected.has(key)) selected.delete(key); else selected.add(key); el.classList.toggle("on"); refreshDateMarks(); });
+    const [s0,s1]=localHourToSlots(me.tz,selectedDate,h);
+    const freeSet=new Set([...(m.get(s0)||[]),...(m.get(s1)||[])]);
+    const cnt=freeSet.size;
+    const sel=selected.has(key);
+    const el=document.createElement("div"); el.className="hr"+(sel?" on":"");
+    el.innerHTML=`<span>${hourLabel(h)}</span>`+(cnt>0?`<span class="cnt">${cnt}</span>`:"");
+    if(!sel && cnt>0) el.style.background=`rgba(67,214,160,${Math.min(0.5,0.10+cnt*0.13)})`;
+    el.addEventListener("click",()=>{ if(selected.has(key)) selected.delete(key); else selected.add(key); renderHours(); refreshDateMarks(); });
     wrap.appendChild(el);
   }
 }
@@ -405,8 +417,7 @@ function renderResult(){
   const out=$("#result");
   if(avail.length===0){ out.innerHTML="<div class='hint' style='margin:0'>No availability yet — be the first to fill yours in.</div>"; return; }
   const N=participants.length;
-  const slotMap=new Map(); // iso -> Set(participant_id)
-  for(const a of avail){ if(!slotMap.has(a.slot_start)) slotMap.set(a.slot_start,new Set()); slotMap.get(a.slot_start).add(a.participant_id); }
+  const slotMap=buildSlotMap(); // iso -> Set(participant_id)
   const ranked=[...slotMap.entries()].map(([iso,set])=>({iso,c:set.size,set})).filter(x=> new Date(x.iso)>new Date())
     .sort((a,b)=> b.c-a.c || new Date(a.iso)-new Date(b.iso));
   if(ranked.length===0){ out.innerHTML="<div class='hint' style='margin:0'>All marked times are in the past. Add later dates.</div>"; return; }
@@ -473,6 +484,15 @@ async function newRound(){
 }
 $("#newRoundBtn").addEventListener("click",newRound);
 
+async function resetEveryone(){
+  if(!confirm("Clear everyone's names and times? The dates stay on the table. Everyone (including you) will re-join.")) return;
+  await sb.from("availability").delete().eq("round_id",round.id);
+  await sb.from("participants").delete().eq("round_id",round.id);
+  localStorage.removeItem("cc.me");
+  location.reload();
+}
+$("#resetBtn").addEventListener("click",resetEveryone);
+
 /* ===== join ===== */
 $("#joinBtn").addEventListener("click",async()=>{
   const name=$("#name").value.trim();
@@ -507,7 +527,16 @@ function subscribeDb(){
 }
 let reloadT=null;
 function softReload(){ clearTimeout(reloadT); reloadT=setTimeout(refresh,250); }
-async function refresh(){ await loadAll(); renderRoster(); renderDates(); renderHours(); renderResult(); }
+async function refresh(){
+  await loadAll();
+  if(me && !participants.some(p=>p.id===me.participantId)){ // organiser reset wiped my row
+    me=null; localStorage.removeItem("cc.me");
+    $("#app").style.display="none"; $("#entry").style.display="block";
+    toast("The organiser reset the planner — please re-join.");
+    return;
+  }
+  renderRoster(); renderDates(); renderHours(); renderResult();
+}
 
 function subscribePresence(){
   presenceChannel=sb.channel("pres-"+round.id,{config:{presence:{key:me.participantId}}});
