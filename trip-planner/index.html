@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trip Picker — one trip the whole group can agree on</title>
+<style>
+  :root{
+    --bg:#0f1220;--panel:#171a2b;--panel2:#1f2338;--line:#2b3050;
+    --ink:#eef0fb;--muted:#9aa0c0;--accent:#6c8cff;--accent2:#8b6cff;
+    --good:#43d6a0;--warn:#ffb454;--bad:#ff6c7a;
+    --r:14px;--r2:10px;--f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 50% -10%,#1a1f3a 0%,var(--bg) 60%);
+    color:var(--ink);font-family:var(--f);line-height:1.45;-webkit-font-smoothing:antialiased;padding:0 0 70px}
+  .wrap{max-width:720px;margin:0 auto;padding:18px 16px}
+  header.top{display:flex;align-items:center;gap:12px;padding:6px 0}
+  .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(140deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:20px}
+  h1{font-size:19px;margin:0;letter-spacing:-.2px}.sub{color:var(--muted);font-size:12.5px;margin:2px 0 0}
+  .tabs{display:flex;gap:8px;margin:16px 0 4px;background:var(--panel);padding:6px;border-radius:var(--r);border:1px solid var(--line)}
+  .tab{flex:1;text-align:center;padding:10px 8px;border-radius:var(--r2);font-weight:600;font-size:14px;color:var(--muted);cursor:pointer;user-select:none}
+  .tab.active{background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:14px}
+  .card h2{font-size:14px;margin:0 0 4px}.card p.hint{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+  label.field{display:block;font-size:11px;color:var(--muted);margin:14px 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  label.field:first-of-type{margin-top:0}
+  input[type=text]{width:100%;padding:12px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:var(--r2);font-size:15px;font-family:var(--f);outline:none}
+  input:focus{border-color:var(--accent)}
+  .combo{position:relative}
+  .combo .list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r2);max-height:240px;overflow:auto;display:none;box-shadow:0 12px 30px rgba(0,0,0,.4)}
+  .combo .list.show{display:block}
+  .combo .list .it{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .combo .list .it:hover{background:var(--accent);color:#fff}.combo .list .it small{color:var(--muted);display:block;font-size:11px}
+  .combo .list .it:hover small{color:#dfe4ff}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:13px;padding:9px 13px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);cursor:pointer;user-select:none}
+  .chip.on{background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+  .stepper{display:flex;align-items:center;gap:14px}
+  .stepper button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:20px;cursor:pointer}
+  .stepper .val{font-size:16px;font-weight:700;min-width:90px}
+  .destpick{display:flex;flex-direction:column;gap:7px}
+  .dp{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r2);padding:10px 12px;cursor:pointer}
+  .dp.on{border-color:var(--good);background:rgba(67,214,160,.13)}
+  .dp .check{width:16px;color:var(--good);font-weight:800;font-size:13px}
+  .dp .nm{font-size:14px;font-weight:600;flex:1}.dp .tag{font-size:10px;color:var(--warn);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+  textarea{width:100%;min-height:70px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:var(--r2);padding:12px;font-size:14px;font-family:var(--f);outline:none;resize:vertical}
+  textarea:focus{border-color:var(--accent)}
+  .note{border-top:1px solid var(--line);padding:9px 0;font-size:13px}.note:first-child{border-top:none}.note b{color:var(--ink)}.note .txt{color:var(--muted);margin-top:2px}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:var(--r2);border:none;cursor:pointer;font-size:15px;font-weight:700;background:linear-gradient(140deg,var(--accent),var(--accent2));color:#fff;margin-top:16px}
+  .btn.secondary{background:var(--panel2);color:var(--ink);border:1px solid var(--line);font-weight:600}
+  .btn:disabled{opacity:.5}.btn:active{transform:translateY(1px)}
+  .banner{background:rgba(255,180,84,.12);border:1px solid var(--warn);color:#ffd9a0;border-radius:var(--r2);padding:10px 12px;font-size:12.5px;margin-top:12px}
+  .banner.bad{background:rgba(255,108,122,.12);border-color:var(--bad);color:#ffc3ca}
+  /* dashboard */
+  .stat{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:8px 0;border-top:1px solid var(--line)}
+  .stat:first-child{border-top:none}.stat .k{color:var(--muted)}.stat .v{font-weight:600;text-align:right}
+  .vibebars{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .vbar{display:flex;align-items:center;gap:8px;font-size:12.5px}.vbar .lab{width:96px;color:var(--muted)}
+  .vbar .track{flex:1;height:8px;background:var(--panel2);border-radius:99px;overflow:hidden}
+  .vbar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .gridwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r2);margin-top:8px}
+  table.fg{border-collapse:collapse;width:100%;min-width:520px;font-size:12px}
+  table.fg th,table.fg td{padding:7px 6px;text-align:center;border:1px solid var(--line);white-space:nowrap}
+  table.fg th{background:var(--panel);color:var(--muted);font-weight:600;font-size:11px}
+  table.fg td.who{text-align:left;color:var(--ink);font-weight:600;position:sticky;left:0;background:var(--panel);min-width:120px}
+  .h-g{background:rgba(67,214,160,.22)}.h-y{background:rgba(255,210,120,.18)}.h-o{background:rgba(255,150,80,.20)}.h-r{background:rgba(255,108,122,.22)}
+  .det{font-size:9px;color:var(--warn)}
+  .lead{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .lr{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
+  .lr .nm{flex:1}.lr .sc{font-weight:700}.lr .sc.pos{color:var(--good)}.lr .sc.neg{color:var(--bad)}
+  .sugg{display:flex;flex-direction:column;gap:10px}
+  .sg{background:linear-gradient(140deg,#1b2750,#241b46);border:1px solid #39406e;border-radius:var(--r);padding:14px}
+  .sg.warn{border-color:var(--warn)}.sg.bad{border-color:var(--bad)}
+  .sg .rank{font-size:11px;font-weight:800;color:#0c0e1a;background:var(--good);border-radius:999px;padding:2px 8px;display:inline-block;margin-bottom:6px}
+  .sg .nm{font-size:17px;font-weight:800}.sg .why{font-size:13px;color:#dfe3ff;margin:5px 0 0}
+  .sg .wo{font-size:12px;color:var(--warn);margin:6px 0 0}.sg .meta{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .sg img.sgimg{width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:8px;background:var(--panel2);display:block}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6}.legend b{color:var(--ink)}
+  .sg a{color:var(--accent);text-decoration:none;font-weight:600}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;background:#0c0e1a;border:1px solid var(--line);color:var(--ink);padding:10px 16px;border-radius:999px;font-size:13px;transition:.25s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .foot{color:var(--muted);font-size:11px;text-align:center;margin-top:18px;line-height:1.6}
+  .monthrow{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  select{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px;font-size:13px;font-family:var(--f)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">🧭</div>
+    <div><h1>Trip Picker</h1><div class="sub">Everyone fills one quick form. We rank the trips that actually fit.</div></div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="form">Your answers</div>
+    <div class="tab" data-tab="dash">Group dashboard</div>
+  </div>
+  <div id="connBanner"></div>
+
+  <!-- FORM -->
+  <section id="formView">
+    <div class="card">
+      <h2>Tell us your bit <span style="color:var(--muted);font-weight:400">· ~45 seconds</span></h2>
+      <p class="hint">All taps. You can edit anytime.</p>
+
+      <label class="field">Your name</label>
+      <input type="text" id="name" placeholder="e.g. Muskan" autocomplete="off">
+
+      <label class="field">Your home city</label>
+      <div class="combo">
+        <input type="text" id="cityInput" placeholder="Start typing… e.g. Delhi" autocomplete="off">
+        <div class="list" id="cityList"></div>
+      </div>
+
+      <label class="field">How many days can you travel?</label>
+      <div class="chips" id="days"></div>
+
+      <label class="field">What are you in the mood for? (pick any)</label>
+      <div class="chips" id="vibes"></div>
+
+      <label class="field">Longest flight you'll do</label>
+      <div class="chips" id="maxflight"></div>
+
+      <label class="field">Budget per person</label>
+      <div class="chips" id="budget"></div>
+
+      <label class="field">How many are you bringing? (incl. you)</label>
+      <div class="stepper"><button id="hcMinus">−</button><span class="val" id="hcVal">1 traveller</span><button id="hcPlus">+</button></div>
+
+      <label class="field">Preferred destinations — tap any you'd be happy with</label>
+      <p class="hint" style="margin:-2px 0 8px"><b style="color:var(--warn)">✈ hard to reach</b> = flights disrupted now (closed airspace). <b style="color:var(--bad)">⚠ advisory</b> = safety warning nearby. Re-check before booking.</p>
+      <div class="destpick" id="destpick"></div>
+
+      <label class="field">Any other restrictions or must-haves? (optional)</label>
+      <textarea id="notes" placeholder="e.g. no long-haul with the baby · need beach access · jet-ski weight limit · prefer halal food · keep it under ₹X"></textarea>
+
+      <button class="btn" id="submitBtn">Save my answers →</button>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="dashView" style="display:none">
+    <div class="card">
+      <div class="monthrow">Planning for:
+        <select id="monthSel"></select>
+        <span id="whoLine" style="margin-left:auto"></span>
+      </div>
+      <div id="dashStats"></div>
+    </div>
+
+    <div class="card">
+      <h2>Mood of the group</h2>
+      <div class="vibebars" id="vibeBars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Flight time — everyone × destination</h2>
+      <p class="hint">Hours each person flies. 🟢 short · 🔴 long. ✈ = detour around closed airspace.</p>
+      <div class="gridwrap"><table class="fg" id="flightGrid"></table></div>
+    </div>
+
+    <div class="card">
+      <h2>Most-wanted destinations</h2>
+      <div class="lead" id="leader"></div>
+    </div>
+
+    <div class="card">
+      <h2>Notes &amp; restrictions</h2>
+      <p class="hint">Everything the group flagged — read these before you decide.</p>
+      <div id="notesList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Top picks for the group</h2>
+      <p class="hint">Scored on flight fit, mood, votes, budget, season & safety. <b style="color:var(--warn)">✈ hard to reach</b> = flights disrupted by closed airspace · <b style="color:var(--bad)">⚠ advisory</b> = safety warning nearby.</p>
+      <div class="sugg" id="suggestions"></div>
+    </div>
+
+    <div class="foot" id="airfoot"></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== config (separate table from the scheduler; same project) ===== */
+const SUPABASE_URL="https://sxsifnakskrublihkjhh.supabase.co";
+const SUPABASE_KEY="sb_publishable_jYitTky2XNjcJjJPUwjBng_mTxKwN5o";
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY) : null;
+const SNAPSHOT_DATE = "8 Jun 2026";
+
+/* ===== home cities [name,country,tz,lat,lng] ===== */
+const CITIES=[
+["Delhi","India","Asia/Kolkata",28.6,77.1],["Mumbai","India","Asia/Kolkata",19.1,72.9],["Bengaluru","India","Asia/Kolkata",13.0,77.6],
+["Hyderabad","India","Asia/Kolkata",17.4,78.5],["Chennai","India","Asia/Kolkata",13.0,80.2],["Kolkata","India","Asia/Kolkata",22.6,88.4],
+["Pune","India","Asia/Kolkata",18.6,73.9],["Ahmedabad","India","Asia/Kolkata",23.1,72.6],["Chandigarh","India","Asia/Kolkata",30.7,76.8],
+["Goa","India","Asia/Kolkata",15.4,73.8],["Dubai","UAE","Asia/Dubai",25.25,55.4],["Abu Dhabi","UAE","Asia/Dubai",24.4,54.6],["Doha","Qatar","Asia/Qatar",25.3,51.6],
+["London","UK","Europe/London",51.5,-0.45],["Manchester","UK","Europe/London",53.4,-2.3],["Dublin","Ireland","Europe/Dublin",53.4,-6.3],
+["Berlin","Germany","Europe/Berlin",52.5,13.3],["Frankfurt","Germany","Europe/Berlin",50.0,8.6],["Munich","Germany","Europe/Berlin",48.4,11.8],
+["Hamburg","Germany","Europe/Berlin",53.6,10.0],["Paris","France","Europe/Paris",49.0,2.5],["Zurich","Switzerland","Europe/Zurich",47.5,8.5],
+["Amsterdam","Netherlands","Europe/Amsterdam",52.3,4.8],["Madrid","Spain","Europe/Madrid",40.5,-3.6],["Barcelona","Spain","Europe/Madrid",41.3,2.1],
+["Rome","Italy","Europe/Rome",41.8,12.3],["Milan","Italy","Europe/Rome",45.6,8.7],["Stockholm","Sweden","Europe/Stockholm",59.6,17.9],
+["Istanbul","Turkey","Europe/Istanbul",41.0,28.8],["Lisbon","Portugal","Europe/Lisbon",38.8,-9.1],
+["Johannesburg","South Africa","Africa/Johannesburg",-26.1,28.2],["Nairobi","Kenya","Africa/Nairobi",-1.3,36.9],["Cairo","Egypt","Africa/Cairo",30.1,31.4],
+["Karachi","Pakistan","Asia/Karachi",24.9,67.2],["Dhaka","Bangladesh","Asia/Dhaka",23.8,90.4],["Kathmandu","Nepal","Asia/Kathmandu",27.7,85.4],
+["Colombo","Sri Lanka","Asia/Colombo",7.2,79.9],["Bangkok","Thailand","Asia/Bangkok",13.7,100.7],["Singapore","Singapore","Asia/Singapore",1.36,104.0],
+["Kuala Lumpur","Malaysia","Asia/Kuala_Lumpur",2.7,101.7],["Jakarta","Indonesia","Asia/Jakarta",-6.1,106.7],["Manila","Philippines","Asia/Manila",14.5,121.0],
+["Hong Kong","Hong Kong","Asia/Hong_Kong",22.3,113.9],["Shanghai","China","Asia/Shanghai",31.1,121.5],["Tokyo","Japan","Asia/Tokyo",35.6,139.8],
+["Seoul","South Korea","Asia/Seoul",37.5,126.8],["Sydney","Australia","Australia/Sydney",-33.9,151.2],["Melbourne","Australia","Australia/Melbourne",-37.7,144.8],
+["Brisbane","Australia","Australia/Brisbane",-27.4,153.1],["Perth","Australia","Australia/Perth",-31.9,116.0],["Auckland","New Zealand","Pacific/Auckland",-37.0,174.8],
+["New York","USA","America/New_York",40.6,-73.8],["Chicago","USA","America/Chicago",42.0,-87.9],["Los Angeles","USA","America/Los_Angeles",34.0,-118.4],
+["San Francisco","USA","America/Los_Angeles",37.6,-122.4],["Toronto","Canada","America/Toronto",43.7,-79.4],["Vancouver","Canada","America/Vancouver",49.2,-123.2],
+["Mexico City","Mexico","America/Mexico_City",19.4,-99.1],["São Paulo","Brazil","America/Sao_Paulo",-23.4,-46.5]
+];
+
+/* ===== destinations (airspace/safety snapshot as of SNAPSHOT_DATE) ===== */
+const VIBES=[["beach","🏖 Beach"],["adventure","🤿 Adventure"],["chill","😌 Chill"],["culture","🏛 Culture"],["food","🍜 Food"],["nightlife","🌃 Nightlife"],["city","🛍 City"]];
+// t = approx avg high °C by month (Jan..Dec). safety: ok|advisory|conflict. airspace: ok|affected (harder to reach now).
+const DESTS=[
+{k:"thailand",name:"Thailand",emoji:"🌴",lat:13.7,lng:100.7,vibes:["beach","adventure","chill","food","nightlife"],visa:"Visa on arrival",best:[11,12,1,2,3],cost:2,safety:"ok",airspace:"ok",t:[32,33,34,35,34,33,32,32,32,31,31,31],img:"thailand,beach",blurb:"Islands, scuba, street food, nightlife."},
+{k:"bali",name:"Bali (Indonesia)",emoji:"🏝",lat:-8.7,lng:115.2,vibes:["beach","chill","adventure","food"],visa:"Visa on arrival",best:[4,5,6,7,8,9],cost:2,safety:"ok",airspace:"ok",t:[30,30,31,32,31,30,29,29,30,31,31,31],img:"bali,beach",blurb:"Beaches, surf, temples, cheap luxury."},
+{k:"vietnam",name:"Vietnam",emoji:"🇻🇳",lat:16.0,lng:108.2,vibes:["beach","culture","food","adventure"],visa:"eVisa",best:[2,3,4,7,8],cost:1,safety:"ok",airspace:"ok",t:[25,27,29,31,33,34,34,34,32,29,27,25],img:"vietnam,danang",blurb:"Beaches, history, amazing food, low cost."},
+{k:"japan",name:"Japan",emoji:"🗾",lat:35.6,lng:139.8,vibes:["culture","food","city","shopping"],visa:"Visa required",best:[3,4,10,11],cost:3,safety:"ok",airspace:"ok",t:[10,11,14,19,23,25,29,31,27,22,17,12],img:"japan,autumn",blurb:"Autumn colours, food, culture, cities."},
+{k:"korea",name:"South Korea",emoji:"🇰🇷",lat:37.5,lng:127.0,vibes:["culture","food","city","nightlife","shopping"],visa:"Visa / K-ETA",best:[4,5,9,10],cost:2,safety:"ok",airspace:"ok",t:[2,5,11,18,23,27,29,30,26,20,11,4],img:"seoul,korea",blurb:"K-culture, food, neon cities, autumn foliage."},
+{k:"philippines",name:"Philippines",emoji:"🇵🇭",lat:14.6,lng:121.0,vibes:["beach","adventure","chill"],visa:"Visa required",best:[12,1,2,3,4],cost:1,safety:"ok",airspace:"ok",t:[30,31,33,34,34,33,31,31,31,31,31,30],img:"philippines,island",blurb:"Island-hopping, diving, white sand, cheap."},
+{k:"singapore",name:"Singapore",emoji:"🌆",lat:1.36,lng:104.0,vibes:["city","food","shopping","nightlife"],visa:"eVisa required",best:[2,3,4,6,7],cost:3,safety:"ok",airspace:"ok",t:[30,31,32,32,32,31,31,31,31,31,30,30],img:"singapore,skyline",blurb:"Spotless city, food, family-friendly."},
+{k:"malaysia",name:"Malaysia",emoji:"🇲🇾",lat:2.7,lng:101.7,vibes:["beach","city","food","culture"],visa:"Visa-free (India)",best:[1,2,3,6,7],cost:1,safety:"ok",airspace:"ok",t:[32,33,33,33,33,32,32,32,32,32,31,31],img:"malaysia,kualalumpur",blurb:"Cities + islands, cheap, easy."},
+{k:"srilanka",name:"Sri Lanka",emoji:"🇱🇰",lat:7.2,lng:79.9,vibes:["beach","culture","chill","adventure"],visa:"eTA",best:[12,1,2,3],cost:1,safety:"ok",airspace:"ok",t:[31,31,32,32,31,30,30,30,30,30,30,30],img:"srilanka,beach",blurb:"Beaches, tea country, wildlife, cheap."},
+{k:"maldives",name:"Maldives",emoji:"🐠",lat:4.2,lng:73.5,vibes:["beach","chill"],visa:"Visa on arrival",best:[11,12,1,2,3,4],cost:3,safety:"ok",airspace:"ok",t:[30,30,31,31,31,30,30,30,30,30,30,30],img:"maldives,resort",blurb:"Pure beach + water villas — a splurge."},
+{k:"nz",name:"New Zealand",emoji:"🏔",lat:-37.0,lng:174.8,vibes:["adventure","chill","culture"],visa:"NZeTA required",best:[12,1,2,3],cost:3,safety:"ok",airspace:"ok",t:[23,24,22,20,17,15,14,15,16,18,20,22],img:"newzealand,landscape",blurb:"Epic nature, adventure, spring blooms in Oct."},
+{k:"australia",name:"Australia",emoji:"🦘",lat:-33.9,lng:151.2,vibes:["beach","city","adventure","nightlife"],visa:"eVisa required",best:[10,11,12,1,2,3],cost:3,safety:"ok",airspace:"ok",t:[26,26,25,22,19,17,16,18,20,22,24,25],img:"australia,sydney",blurb:"Beaches, reefs, cities, spring in Oct."},
+{k:"italy",name:"Italy",emoji:"🍝",lat:41.8,lng:12.5,vibes:["culture","food","city"],visa:"Schengen visa",best:[5,6,9,10],cost:3,safety:"ok",airspace:"ok",t:[12,13,16,19,24,28,31,31,27,22,16,13],img:"italy,rome",blurb:"History, food, Mediterranean autumn."},
+{k:"spain",name:"Spain",emoji:"🇪🇸",lat:41.3,lng:2.1,vibes:["beach","culture","nightlife","food","city"],visa:"Schengen visa",best:[5,6,9,10],cost:2,safety:"ok",airspace:"ok",t:[14,15,17,19,22,26,29,29,26,22,17,14],img:"spain,barcelona",blurb:"Beaches + culture + nightlife, mild October."},
+{k:"france",name:"France",emoji:"🇫🇷",lat:48.9,lng:2.4,vibes:["culture","food","city","shopping"],visa:"Schengen visa",best:[5,6,9,10],cost:3,safety:"ok",airspace:"ok",t:[7,8,12,16,20,23,25,25,21,16,11,7],img:"paris,france",blurb:"Paris, Riviera, wine, art, food."},
+{k:"germany",name:"Germany",emoji:"🇩🇪",lat:52.5,lng:13.4,vibes:["culture","city","food","nightlife"],visa:"Schengen visa",best:[5,6,7,8,9],cost:2,safety:"ok",airspace:"ok",t:[3,4,9,14,19,22,24,23,19,13,7,4],img:"germany,berlin",blurb:"Cities, history, beer halls, castles."},
+{k:"switzerland",name:"Switzerland",emoji:"🇨🇭",lat:47.4,lng:8.5,vibes:["adventure","chill","culture"],visa:"Schengen visa",best:[6,7,8,9,12,1,2],cost:3,safety:"ok",airspace:"ok",t:[3,5,10,14,19,22,24,24,19,13,7,4],img:"switzerland,alps",blurb:"Alps, lakes, trains, postcard views."},
+{k:"greece",name:"Greece",emoji:"🇬🇷",lat:38.0,lng:23.7,vibes:["beach","culture","chill","nightlife"],visa:"Schengen visa",best:[5,6,9,10],cost:2,safety:"ok",airspace:"ok",t:[13,14,16,20,25,30,33,33,29,23,18,14],img:"greece,santorini",blurb:"Islands, ruins, blue domes, sunsets."},
+{k:"portugal",name:"Portugal",emoji:"🇵🇹",lat:38.7,lng:-9.1,vibes:["beach","culture","food","chill"],visa:"Schengen visa",best:[5,6,9,10],cost:2,safety:"ok",airspace:"ok",t:[15,16,18,20,22,26,28,29,27,22,18,15],img:"portugal,lisbon",blurb:"Lisbon, surf coast, food, value Europe."},
+{k:"uk",name:"United Kingdom",emoji:"🇬🇧",lat:51.5,lng:-0.1,vibes:["culture","city","shopping","nightlife"],visa:"Visa required",best:[6,7,8,9],cost:3,safety:"ok",airspace:"ok",t:[8,9,12,15,18,21,23,23,20,15,11,8],img:"london,uk",blurb:"London, history, countryside, theatre."},
+{k:"dubai",name:"Dubai (UAE)",emoji:"🏜",lat:25.25,lng:55.4,vibes:["beach","city","nightlife","shopping","chill"],visa:"Visa on arrival",best:[10,11,12,1,2,3],cost:3,safety:"ok",airspace:"affected",t:[24,25,28,33,38,40,41,41,38,35,30,26],img:"dubai,skyline",blurb:"Luxury, beaches, nightlife — but UAE airspace is disrupted right now."},
+{k:"turkey",name:"Turkey",emoji:"🕌",lat:41.0,lng:28.8,vibes:["culture","city","food","nightlife"],visa:"eVisa",best:[4,5,9,10],cost:2,safety:"ok",airspace:"ok",t:[9,9,11,16,21,25,28,28,24,19,15,11],img:"istanbul,turkey",blurb:"East-meets-west, food, history, value."},
+{k:"egypt",name:"Egypt",emoji:"🐫",lat:30.1,lng:31.4,vibes:["culture","beach","adventure"],visa:"eVisa / on arrival",best:[10,11,12,3,4],cost:1,safety:"advisory",airspace:"affected",t:[19,21,24,29,33,35,35,35,33,30,25,21],img:"egypt,pyramids",blurb:"Pyramids + Red Sea diving — but near the active conflict zone."},
+{k:"morocco",name:"Morocco",emoji:"🇲🇦",lat:31.6,lng:-8.0,vibes:["culture","adventure","food","city"],visa:"Visa required",best:[3,4,5,9,10,11],cost:1,safety:"ok",airspace:"ok",t:[18,20,23,26,29,33,37,37,33,28,23,19],img:"morocco,marrakech",blurb:"Medinas, desert, colour, great value."},
+{k:"southafrica",name:"South Africa",emoji:"🇿🇦",lat:-33.9,lng:18.6,vibes:["adventure","beach","culture","food"],visa:"eVisa required",best:[10,11,12,1,2,3],cost:2,safety:"ok",airspace:"ok",t:[26,26,25,23,20,18,18,18,19,21,23,25],img:"capetown,southafrica",blurb:"Safari, Cape Town, wine, coast."},
+{k:"mauritius",name:"Mauritius",emoji:"🏖",lat:-20.3,lng:57.5,vibes:["beach","chill"],visa:"Visa-free (India)",best:[4,5,9,10,11,12],cost:3,safety:"ok",airspace:"ok",t:[29,30,30,29,27,25,24,24,25,26,28,29],img:"mauritius,beach",blurb:"Honeymoon beaches, lagoons, easy visa."},
+{k:"usa",name:"USA",emoji:"🇺🇸",lat:40.7,lng:-74.0,vibes:["city","culture","shopping","nightlife","adventure"],visa:"Visa required",best:[5,6,9,10],cost:3,safety:"ok",airspace:"ok",t:[4,6,11,17,22,27,29,28,25,18,12,6],img:"newyork,usa",blurb:"Cities, parks, road trips — but visa is the slog."},
+{k:"mexico",name:"Mexico",emoji:"🇲🇽",lat:21.0,lng:-86.8,vibes:["beach","culture","nightlife","chill"],visa:"Visa required",best:[11,12,1,2,3,4],cost:2,safety:"ok",airspace:"ok",t:[28,28,30,31,32,33,33,33,32,31,29,28],img:"cancun,mexico",blurb:"Cancún beaches, ruins, tacos, cenotes."},
+{k:"brazil",name:"Brazil",emoji:"🇧🇷",lat:-22.9,lng:-43.2,vibes:["beach","nightlife","culture","adventure"],visa:"eVisa required",best:[12,1,2,3],cost:2,safety:"ok",airspace:"ok",t:[30,30,29,28,26,25,25,25,25,26,27,29],img:"riodejaneiro,brazil",blurb:"Rio, beaches, carnival energy, nature."}
+];
+const DEST=Object.fromEntries(DESTS.map(d=>[d.k,d]));
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/* ===== flight time (geography + airspace detour) ===== */
+// Middle-East conflict/closed-airspace box (approx) as of snapshot.
+const ME_BOX={latMin:12,latMax:42,lngMin:33,lngMax:64};
+function toRad(d){return d*Math.PI/180}
+function haversine(a,b){
+  const R=6371,dLat=toRad(b[0]-a[0]),dLng=toRad(b[1]-a[1]);
+  const x=Math.sin(dLat/2)**2+Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+// sample points along the great circle; true if any crosses the ME box
+function crossesME(a,b){
+  const d=haversine(a,b)/6371; if(d===0) return false;
+  const lat1=toRad(a[0]),lon1=toRad(a[1]),lat2=toRad(b[0]),lon2=toRad(b[1]);
+  for(let f=0.15;f<=0.85;f+=0.1){
+    const A=Math.sin((1-f)*d)/Math.sin(d),B=Math.sin(f*d)/Math.sin(d);
+    const x=A*Math.cos(lat1)*Math.cos(lon1)+B*Math.cos(lat2)*Math.cos(lon2);
+    const y=A*Math.cos(lat1)*Math.sin(lon1)+B*Math.cos(lat2)*Math.sin(lon2);
+    const z=A*Math.sin(lat1)+B*Math.sin(lat2);
+    const la=Math.atan2(z,Math.sqrt(x*x+y*y))*180/Math.PI, ln=Math.atan2(y,x)*180/Math.PI;
+    if(la>ME_BOX.latMin&&la<ME_BOX.latMax&&ln>ME_BOX.lngMin&&ln<ME_BOX.lngMax) return true;
+  }
+  return false;
+}
+// returns {hours, detour}
+function flightTime(from,dest){
+  const km=haversine([from.lat,from.lng],[dest.lat,dest.lng]);
+  let h=km/850 + 1.0;                 // cruise + taxi/climb/descent
+  if(km>4500) h+=1.5;                 // likely 1 connection
+  if(km>9000) h+=1.5;                 // long connection
+  let detour=false;
+  if(crossesME([from.lat,from.lng],[dest.lat,dest.lng])){ h+=2.5; detour=true; } // reroute around closed airspace
+  return {hours:Math.round(h*2)/2, detour};
+}
+function heatClass(h){ return h<=6?"h-g":h<=10?"h-y":h<=14?"h-o":"h-r"; }
+
+/* ===== state ===== */
+let people=[]; let me=null; let localMode=false;
+let tripMonth=10; // October
+const form={ days:"6-7", vibes:new Set(), maxflight:99, budget:2, headcount:1, likes:new Set(), notes:"", city:null };
+
+/* ===== helpers ===== */
+const $=s=>document.querySelector(s);
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+function shortCity(l){return (l||"").split(",")[0];}
+
+/* ===== form: city combobox ===== */
+const cityInput=$("#cityInput"),cityList=$("#cityList");
+function renderCityList(q){
+  const ql=q.trim().toLowerCase();
+  const items=CITIES.filter(c=>(c[0]+" "+c[1]).toLowerCase().includes(ql)).slice(0,8);
+  cityList.innerHTML="";
+  if(!ql||!items.length){cityList.classList.remove("show");return;}
+  for(const c of items){
+    const it=document.createElement("div");it.className="it";
+    it.innerHTML="<span></span><small></small>";
+    it.querySelector("span").textContent=c[0];it.querySelector("small").textContent=c[1];
+    it.addEventListener("mousedown",e=>{e.preventDefault();form.city={label:c[0]+", "+c[1],lat:c[3],lng:c[4]};cityInput.value=c[0]+", "+c[1];cityList.classList.remove("show");});
+    cityList.appendChild(it);
+  }
+  cityList.classList.add("show");
+}
+cityInput.addEventListener("input",()=>{form.city=null;renderCityList(cityInput.value);});
+cityInput.addEventListener("focus",()=>renderCityList(cityInput.value));
+document.addEventListener("click",e=>{if(!e.target.closest(".combo"))cityList.classList.remove("show");});
+
+/* ===== form: chip groups ===== */
+function chipGroup(elId,opts,multi,getSel,setSel){
+  const el=$("#"+elId);el.innerHTML="";
+  for(const [val,label] of opts){
+    const c=document.createElement("span");c.className="chip"+(getSel(val)?" on":"");
+    c.textContent=label;
+    c.addEventListener("click",()=>{ setSel(val); chipGroup(elId,opts,multi,getSel,setSel); });
+    el.appendChild(c);
+  }
+}
+chipGroup("days",[["4-5","4–5 days"],["6-7","6–7 days"],["8-10","8–10 days"],["any","Flexible / open"]],false,v=>form.days===v,v=>form.days=v);
+chipGroup("vibes",VIBES,true,v=>form.vibes.has(v),v=>{form.vibes.has(v)?form.vibes.delete(v):form.vibes.add(v);});
+chipGroup("maxflight",[[6,"≤ 6h"],[10,"≤ 10h"],[15,"≤ 15h"],[99,"Any"]],false,v=>form.maxflight===v,v=>form.maxflight=v);
+chipGroup("budget",[[1,"$ Budget"],[2,"$$ Mid"],[3,"$$$ Splurge"]],false,v=>form.budget===v,v=>form.budget=v);
+
+/* headcount */
+function renderHc(){$("#hcVal").textContent=form.headcount+(form.headcount===1?" traveller":" travellers");}
+$("#hcMinus").addEventListener("click",()=>{form.headcount=Math.max(1,form.headcount-1);renderHc();});
+$("#hcPlus").addEventListener("click",()=>{form.headcount=Math.min(12,form.headcount+1);renderHc();});
+renderHc();
+
+/* destinations like/dislike */
+function renderDestPick(){
+  const el=$("#destpick");el.innerHTML="";
+  for(const d of DESTS){
+    const on=form.likes.has(d.k);
+    const row=document.createElement("div");row.className="dp"+(on?" on":"");
+    const flag = d.safety==="advisory"?'<span class="tag">⚠ advisory</span>':(d.airspace==="affected"?'<span class="tag">✈ hard to reach</span>':"");
+    row.innerHTML=`<span class="check">${on?"✓":""}</span><span class="nm">${d.emoji} ${d.name}</span>${flag}`;
+    row.addEventListener("click",()=>{ if(form.likes.has(d.k))form.likes.delete(d.k); else form.likes.add(d.k); renderDestPick(); });
+    el.appendChild(row);
+  }
+}
+renderDestPick();
+
+/* ===== submit ===== */
+$("#submitBtn").addEventListener("click",async()=>{
+  const name=$("#name").value.trim();
+  if(!name){toast("Add your name");$("#name").focus();return;}
+  if(!form.city){toast("Pick your city from the list");$("#cityInput").focus();return;}
+  const row={ name, city_label:form.city.label, lat:form.city.lat, lng:form.city.lng,
+    days:form.days, max_flight:form.maxflight, budget:form.budget, headcount:form.headcount,
+    vibes:[...form.vibes], likes:[...form.likes], notes:$("#notes").value.trim() };
+  $("#submitBtn").disabled=true;$("#submitBtn").textContent="Saving…";
+  if(sb && !localMode){
+    const existing=people.find(p=>p.name.toLowerCase()===name.toLowerCase());
+    let res;
+    if(existing) res=await sb.from("trip_people").update(row).eq("id",existing.id).select().single();
+    else res=await sb.from("trip_people").insert(row).select().single();
+    if(res.error){ localMode=true; upsertLocal({...row,id:"local"}); }
+    else { me=res.data; localStorage.setItem("tp.me",JSON.stringify({id:me.id,name})); }
+  } else { upsertLocal({...row,id:"local-"+name}); }
+  $("#submitBtn").disabled=false;$("#submitBtn").textContent="Save my answers →";
+  await reload();
+  toast("Saved! See the group dashboard →");
+  switchTab("dash");
+});
+function upsertLocal(row){ const i=people.findIndex(p=>p.name.toLowerCase()===row.name.toLowerCase()); if(i>=0)people[i]=row; else people.push(row); }
+
+/* ===== dashboard ===== */
+function switchTab(which){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===which));
+  $("#formView").style.display=which==="form"?"block":"none";
+  $("#dashView").style.display=which==="dash"?"block":"none";
+  if(which==="dash") renderDash();
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.tab)));
+
+/* month selector */
+(function(){const s=$("#monthSel");MONTHS.forEach((m,i)=>{const o=document.createElement("option");o.value=i+1;o.textContent=m;if(i+1===tripMonth)o.selected=true;s.appendChild(o);});s.addEventListener("change",()=>{tripMonth=Number(s.value);renderDash();});})();
+
+function renderDash(){
+  const N=people.length;
+  const travellers=people.reduce((s,p)=>s+(p.headcount||1),0);
+  $("#whoLine").textContent=N?`${N} filled · ${travellers} travellers`:"";
+  // stats
+  const stats=$("#dashStats");
+  if(!N){ stats.innerHTML="<div class='empty'>No one's filled the form yet. Be the first →</div>"; $("#vibeBars").innerHTML="";$("#flightGrid").innerHTML="";$("#leader").innerHTML="";$("#notesList").innerHTML="";$("#suggestions").innerHTML="";return; }
+  const caps=people.filter(p=>p.max_flight<99);
+  const tightest=caps.length?Math.min(...caps.map(p=>p.max_flight)):null;
+  const budgetAvg=(people.reduce((s,p)=>s+(p.budget||2),0)/N);
+  const daysMode=mode(people.map(p=>p.days));
+  stats.innerHTML=
+    statRow("Who's in",`${N} people · ${travellers} travellers`)+
+    statRow("Trip length (most common)",daysMode+" days")+
+    statRow("Budget lean",["","$ budget","$$ mid","$$$ splurge"][Math.round(budgetAvg)])+
+    statRow("Tightest flight limit",tightest?`${tightest}h — ${caps.filter(p=>p.max_flight===tightest).map(p=>p.name).join(", ")}`:"none set");
+  // vibe bars
+  const vc={};VIBES.forEach(([k])=>vc[k]=0);people.forEach(p=>(p.vibes||[]).forEach(v=>vc[v]!==undefined&&vc[v]++));
+  const vmax=Math.max(1,...Object.values(vc));
+  $("#vibeBars").innerHTML=VIBES.map(([k,l])=>`<div class="vbar"><span class="lab">${l}</span><span class="track"><span class="fill" style="width:${vc[k]/vmax*100}%"></span></span><span>${vc[k]}</span></div>`).join("");
+  renderFlightGrid();
+  renderLeader();
+  renderNotes();
+  renderSuggestions();
+  $("#airfoot").innerHTML=`Airspace & safety snapshot as of <b>${SNAPSHOT_DATE}</b> — Middle-East closures change fast, always re-check official advisories before booking. Flight times are geography-based estimates, not live itineraries.`;
+}
+function statRow(k,v){return `<div class="stat"><span class="k">${k}</span><span class="v">${v}</span></div>`;}
+function mode(arr){const c={};let best=arr[0],bc=0;for(const x of arr){c[x]=(c[x]||0)+1;if(c[x]>bc){bc=c[x];best=x;}}return best;}
+
+function renderFlightGrid(){
+  const voted=DESTS.filter(d=>people.some(p=>(p.likes||[]).includes(d.k)));
+  const cols=voted.length?voted:DESTS;
+  let html="<tr><th class='who'>Person</th>"+cols.map(d=>`<th>${d.emoji}<br>${d.name.split(" ")[0]}</th>`).join("")+"</tr>";
+  for(const p of people){
+    html+=`<tr><td class='who'>${esc(p.name)}<br><span style='color:var(--muted);font-weight:400;font-size:10px'>${esc(shortCity(p.city_label))}</span></td>`;
+    for(const d of cols){
+      const ft=flightTime(p,d);
+      html+=`<td class='${heatClass(ft.hours)}'>${ft.hours}h${ft.detour?'<br><span class="det">✈ detour</span>':''}</td>`;
+    }
+    html+="</tr>";
+  }
+  $("#flightGrid").innerHTML=html;
+}
+function renderLeader(){
+  const rows=DESTS.map(d=>{
+    let want=0;people.forEach(p=>{(p.likes||[]).includes(d.k)&&want++;});
+    return {d,want};
+  }).filter(r=>r.want).sort((a,b)=>b.want-a.want);
+  if(!rows.length){$("#leader").innerHTML="<div class='empty'>No one's picked a destination yet.</div>";return;}
+  $("#leader").innerHTML=rows.map(r=>`<div class="lr"><span class="nm">${r.d.emoji} ${r.d.name}</span><span class="sc pos">${r.want} of ${people.length} want it</span></div>`).join("");
+}
+function renderNotes(){
+  const withNotes=people.filter(p=>p.notes&&p.notes.trim());
+  const el=$("#notesList");
+  if(!withNotes.length){ el.innerHTML="<div class='empty'>No extra notes yet.</div>"; return; }
+  el.innerHTML=withNotes.map(p=>`<div class="note"><b>${esc(p.name)}</b> · ${esc(shortCity(p.city_label))}<div class="txt">“${esc(p.notes)}”</div></div>`).join("");
+}
+
+/* ===== scoring engine ===== */
+function scoreDest(d){
+  const N=people.length;
+  // flight fit
+  let fitCount=0,maxH=0,worst=null;
+  const hrs=people.map(p=>{const ft=flightTime(p,d);if(ft.hours<=(p.max_flight||99))fitCount++;if(ft.hours>maxH){maxH=ft.hours;worst=p;}return {p,h:ft.hours,detour:ft.detour};});
+  const flightScore=fitCount/N;
+  // vibe overlap
+  const vc={};people.forEach(p=>(p.vibes||[]).forEach(v=>vc[v]=(vc[v]||0)+1));
+  const totalV=Object.values(vc).reduce((a,b)=>a+b,0)||1;
+  const vibeScore=d.vibes.reduce((s,v)=>s+(vc[v]||0),0)/totalV;
+  // budget closeness
+  const bAvg=people.reduce((s,p)=>s+(p.budget||2),0)/N;
+  const budgetScore=1-Math.abs(d.cost-bAvg)/2;
+  // preferred (how many picked it)
+  let want=0;people.forEach(p=>{(p.likes||[]).includes(d.k)&&want++;});
+  const voteScore=want/N; // 0..1
+  const seasonScore=d.best.includes(tripMonth)?1:0.5;
+  // safety/airspace penalties
+  let pen=0; if(d.safety==="advisory")pen+=0.30; if(d.safety==="conflict")pen+=1; if(d.airspace==="affected")pen+=0.12;
+  const total=0.34*flightScore+0.24*vibeScore+0.22*voteScore+0.10*budgetScore+0.08*seasonScore - pen;
+  return {d,total,flightScore,vibeScore,voteScore,seasonScore,maxH,worst,fitCount,hrs,want,pen};
+}
+function renderSuggestions(){
+  const ranked=DESTS.filter(d=>d.safety!=="conflict").map(scoreDest).sort((a,b)=>b.total-a.total).slice(0,3);
+  const el=$("#suggestions");
+  if(!people.length){el.innerHTML="";return;}
+  el.innerHTML=ranked.map((r,i)=>{
+    const d=r.d;
+    const vibeMatch=topVibes(d);
+    const why=[];
+    if(r.fitCount===people.length) why.push("flights work for everyone");
+    else why.push(`flights ok for ${r.fitCount}/${people.length}`);
+    if(vibeMatch.length) why.push("matches "+vibeMatch.join(" + "));
+    if(r.seasonScore===1) why.push(MONTHS[tripMonth-1]+" is a great time");
+    if(r.want>0) why.push(`${r.want} of ${people.length} picked it`);
+    const wo=[];
+    if(d.safety==="advisory") wo.push("⚠ near a current conflict/advisory zone — verify before booking");
+    if(d.airspace==="affected") wo.push("✈ hard to reach now — closed airspace is rerouting flights (longer + pricier)");
+    if(r.worst && r.maxH>14) wo.push(`${r.worst.name} flies ~${r.maxH}h (rough)`);
+    if(d.cost===3) wo.push("priciest tier");
+    const cls=d.safety==="advisory"?"bad":(d.airspace==="affected"?"warn":"");
+    const gf=googleFlights(d);
+    const temp=d.t[tripMonth-1];
+    return `<div class="sg ${cls}">
+      <img class="sgimg" src="https://loremflickr.com/360/150/${encodeURIComponent(d.img)}" loading="lazy" onerror="this.style.display='none'" alt="">
+      <span class="rank">#${i+1}</span>
+      <div class="nm">${d.emoji} ${d.name}</div>
+      <div class="why">${cap(why.join(", "))}. ${d.blurb}</div>
+      ${wo.length?`<div class="wo">Watch-out: ${wo.join(" · ")}</div>`:""}
+      <div class="meta">🌡 ${MONTHS[tripMonth-1]} ~${temp}°C · 🛂 ${d.visa} · ${gf}</div></div>`;
+  }).join("");
+}
+function topVibes(d){
+  const vc={};people.forEach(p=>(p.vibes||[]).forEach(v=>vc[v]=(vc[v]||0)+1));
+  return d.vibes.filter(v=>vc[v]).sort((a,b)=>vc[b]-vc[a]).slice(0,2).map(v=>VIBES.find(x=>x[0]===v)[1].split(" ")[1]||v);
+}
+function googleFlights(d){
+  // link from the most-common home city (or first person)
+  const from = me ? shortCity(me.city_label) : (people[0]?shortCity(people[0].city_label):"");
+  const q=encodeURIComponent(`flights from ${from} to ${d.name} in ${MONTHS[tripMonth-1]}`);
+  return `<a href="https://www.google.com/travel/flights?q=${q}" target="_blank" rel="noopener">check live flights ↗</a>`;
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+
+/* ===== load / realtime ===== */
+async function reload(){
+  if(sb && !localMode){
+    const {data,error}=await sb.from("trip_people").select("*").order("created_at");
+    if(error){ localMode=true; showConn(); }
+    else { people=data||[]; }
+  }
+  if($("#dashView").style.display!=="none") renderDash();
+}
+function showConn(){
+  $("#connBanner").innerHTML = localMode
+    ? `<div class="banner">Shared saving isn't on yet — you're in <b>preview mode</b> (only your own entry shows). It'll go live once the backend table is created.</div>`
+    : "";
+}
+function subscribe(){
+  if(!sb||localMode) return;
+  sb.channel("trip").on("postgres_changes",{event:"*",schema:"public",table:"trip_people"},()=>reload()).subscribe();
+}
+
+async function init(){
+  if(!sb){ localMode=true; showConn(); return; }
+  const {error}=await sb.from("trip_people").select("id").limit(1);
+  if(error){ localMode=true; showConn(); }   // table not created yet
+  else { await reload(); subscribe(); }
+  // resume identity
+  try{ const s=JSON.parse(localStorage.getItem("tp.me")||"null"); if(s) me=people.find(p=>p.id===s.id)||me; }catch(e){}
+}
+window.__tp={get people(){return people},set people(v){people=v},renderDash,scoreDest,flightTime,DESTS,switchTab};
+init();
+</script>
+</body>
+</html>
